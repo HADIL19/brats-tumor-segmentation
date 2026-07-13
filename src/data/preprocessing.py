@@ -22,10 +22,27 @@ from pathlib import Path
 
 import nibabel as nib
 import numpy as np
+from scipy.ndimage import zoom
 from tqdm import tqdm
 
 MODALITIES = ["t1", "t1ce", "t2", "flair"]
 RAW_LABEL_REMAP = {0: 0, 1: 1, 2: 2, 4: 3}
+
+# Original BraTS volumes are 240x240x155 voxels. At full resolution, float16 storage
+# for all 1251 cases needs ~100GB, which doesn't fit on disk-constrained environments
+# like Colab's free tier (~110GB total, shared with the OS and raw downloads).
+# Resampling to a fixed, smaller shape cuts this to a few GB while still preserving
+# enough spatial detail for a portfolio-scale segmentation model. This also matches
+# our training patch_size, so the whole volume becomes usable directly.
+TARGET_SHAPE = (128, 128, 128)
+
+
+def resample_volume(volume: np.ndarray, target_shape: tuple, order: int) -> np.ndarray:
+    """Resample a (D, H, W) volume to target_shape.
+    order=1 (linear) for images, order=0 (nearest) for label maps so we
+    never invent new label values through interpolation."""
+    factors = [t / s for t, s in zip(target_shape, volume.shape)]
+    return zoom(volume, factors, order=order)
 
 
 def zscore_normalize(volume: np.ndarray) -> np.ndarray:
@@ -50,17 +67,20 @@ def remap_labels(label: np.ndarray) -> np.ndarray:
     return remapped
 
 
-def process_case(case_dir: Path, out_dir: Path, delete_raw_after: bool = False) -> None:
+def process_case(case_dir: Path, out_dir: Path, delete_raw_after: bool = False,
+                  target_shape: tuple = TARGET_SHAPE) -> None:
     case_id = case_dir.name
     modality_volumes = []
     for mod in MODALITIES:
         path = case_dir / f"{case_id}_{mod}.nii.gz"
         volume = nib.load(str(path)).get_fdata()
+        volume = resample_volume(volume, target_shape, order=1)
         modality_volumes.append(zscore_normalize(volume))
-    image = np.stack(modality_volumes, axis=0)  # (4, D, H, W), float16
+    image = np.stack(modality_volumes, axis=0)  # (4, *target_shape), float16
 
     seg_path = case_dir / f"{case_id}_seg.nii.gz"
     label = nib.load(str(seg_path)).get_fdata().astype(np.int64)
+    label = resample_volume(label.astype(np.float32), target_shape, order=0).astype(np.int64)
     label = remap_labels(label)
 
     case_out_dir = out_dir / case_id

@@ -59,18 +59,41 @@ cd brats-tumor-segmentation
 pip install -r requirements.txt
 ```
 
-Data: download BraTS from the [official challenge site](https://www.med.upenn.edu/cbica/brats/) and place under `data/raw/`. See [`docs/data_prep.md`](docs/data_prep.md) for preprocessing steps.
+### Data
+
+This project uses the [BraTS 2021 Task 1 dataset](https://www.kaggle.com/datasets/dschettler8845/brats-2021-task1), available on Kaggle. It contains multi-institutional mpMRI scans (T1, T1ce, T2, FLAIR) with expert annotations for enhancing tumor, peritumoral edema, and necrotic tumor core.
+
+1. Download the dataset from Kaggle (sign-in required)
+2. Extract it into `data/raw/` so the structure looks like:
+   ```
+   data/raw/BraTS2021_Training_Data/
+       BraTS2021_00000/
+           BraTS2021_00000_t1.nii.gz
+           BraTS2021_00000_t1ce.nii.gz
+           BraTS2021_00000_t2.nii.gz
+           BraTS2021_00000_flair.nii.gz
+           BraTS2021_00000_seg.nii.gz
+       BraTS2021_00002/
+       ...
+   ```
+3. Preprocess into normalized numpy arrays:
+   ```bash
+   python -m src.data.preprocessing --raw_dir data/raw/BraTS2021_Training_Data --out_dir data/processed
+   ```
+
+Raw and processed data are excluded from version control via `.gitignore` — only code and results are tracked in this repo.
 
 ## Training
 
 ```bash
-python src/train.py --config configs/attention_unet.yaml
+python -m src.train --config configs/unet_baseline.yaml
+python -m src.train --config configs/attention_unet.yaml
 ```
 
 ## Evaluation
 
 ```bash
-python src/evaluate.py --checkpoint checkpoints/attention_unet_best.pt --split test
+python -m src.evaluate --config configs/attention_unet.yaml --checkpoint checkpoints/attention_unet_best.pt
 ```
 
 Reports Dice score, Hausdorff95, sensitivity, and specificity per tumor sub-region, plus qualitative overlays on held-out cases.
@@ -78,11 +101,10 @@ Reports Dice score, Hausdorff95, sensitivity, and specificity per tumor sub-regi
 ## Interactive demo
 
 ```bash
-cd demo
-streamlit run app.py
+streamlit run demo/app.py
 ```
 
-Upload an MRI slice (or use a provided sample) and view the predicted segmentation overlay in real time.
+Select a case and slice, then view the model's predicted segmentation overlay against ground truth in real time.
 
 ## Detailed results
 
@@ -97,6 +119,7 @@ Full per-case metrics, training curves, and a discussion of failure cases (where
 ## References
 
 - Menze et al., "The Multimodal Brain Tumor Image Segmentation Benchmark (BraTS)," IEEE TMI 2015
+- Baid et al., "The RSNA-ASNR-MICCAI BraTS 2021 Benchmark on Brain Tumor Segmentation and Radiogenomic Classification," 2021
 - Oktay et al., "Attention U-Net: Learning Where to Look for the Pancreas," 2018
 - Ronneberger et al., "U-Net: Convolutional Networks for Biomedical Image Segmentation," MICCAI 2015
 

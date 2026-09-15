@@ -1,5 +1,5 @@
 # Brain Tumor Segmentation with Attention U-Net
-
+3D/2D Tumor Segmentation with a modern architecture + clinical-grade evaluation
 Deep learning pipeline for multi-class brain tumor segmentation on MRI scans, built on the BraTS (Brain Tumor Segmentation) dataset. Implements a U-Net baseline and an Attention U-Net variant, with clinically relevant evaluation metrics and an interactive inference demo.
 
 ![demo](assets/demo.gif)
@@ -126,3 +126,15 @@ Full per-case metrics, training curves, and a discussion of failure cases (where
 ## License
 
 MIT
+src/models/unet.py           — 3D U-Net baseline (tested, runs correctly)
+src/models/attention_unet.py — Attention U-Net with gated skip connections
+src/models/losses.py         — Combined Dice + Cross-Entropy loss
+src/data/preprocessing.py    — Converts raw BraTS NIfTI → normalized numpy
+src/data/dataset.py          — Patch sampling with tumor-biased cropping + flip augmentation
+src/metrics.py               — Dice, Hausdorff95, sensitivity/specificity per class
+src/train.py                 — Full training loop with checkpointing
+src/evaluate.py              — Sliding-window inference + full metrics report
+src/inference.py             — Single-case prediction + overlay visualization
+demo/app.py                  — Streamlit inference demo
+configs/*.yaml               — One config per experiment (unet vs attention_unet)
+Dockerfile, requirements.txt, .gitignore
